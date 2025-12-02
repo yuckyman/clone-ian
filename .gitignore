@@ -6,6 +6,7 @@ imessage_corpus.jsonl
 *.parquet
 *.h5
 *.hdf5
+training_data/
 
 # Model checkpoints and outputs
 *.pt
