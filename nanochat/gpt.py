@@ -185,16 +185,21 @@ class GPT(nn.Module):
             else:
                 logits = logits / temperature
                 if top_k is not None:
-                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                    logits[logits < v[:, [-1]]] = -float('Inf')
+                    # get top-k values and threshold
+                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)), dim=-1)
+                    # get the k-th largest value (threshold) and mask out smaller values
+                    logits_thresh = v[..., -1:]  # shape: [batch, 1, 1]
+                    logits = logits.masked_fill(logits < logits_thresh, -float('Inf'))
                 probs = F.softmax(logits, dim=-1)
-                idx_next = torch.multinomial(probs, num_samples=1)
+                # squeeze middle dimension: [batch, 1, vocab] -> [batch, vocab]
+                probs_2d = probs.squeeze(1)  # [batch, vocab]
+                idx_next = torch.multinomial(probs_2d, num_samples=1)  # [batch, 1]
             
             # append
             idx = torch.cat((idx, idx_next), dim=1)
             
-            # stop token
-            if stop_token is not None and idx_next.item() == stop_token:
+            # stop token (check first token of first batch)
+            if stop_token is not None and idx_next[0, 0].item() == stop_token:
                 break
         
         return idx
